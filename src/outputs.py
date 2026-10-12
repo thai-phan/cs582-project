@@ -1,4 +1,3 @@
-"""Folder layout of one run. Every stage reads and writes through this, never through ad-hoc paths."""
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -6,7 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT=ROOT/'reports/crm/final'
 SMOKE_OUTPUT=ROOT/'reports/crm/smoke'
-SIMULATED_OUTPUT=ROOT/'reports/crm/simulated'   # runs on data other than data/crm; never final results
+SIMULATED_OUTPUT=ROOT/'reports/crm/simulated'
 
 
 @dataclass(frozen=True)
@@ -15,17 +14,17 @@ class Outputs:
 
     def __post_init__(self): object.__setattr__(self,'root',Path(self.root))
     @property
-    def data(self): return self.root/'data'                # data quality, split assignments, EDA tables
+    def data(self): return self.root/'data'
     @property
-    def models(self): return self.root/'models'            # fitted models, scoring bundle, training history
+    def models(self): return self.root/'models'
     @property
-    def metrics(self): return self.root/'metrics'          # validation/test metrics, calibration, raw test probabilities
+    def metrics(self): return self.root/'metrics'
     @property
-    def explain(self): return self.root/'explain'          # feature importance, permutation, RF SHAP
+    def explain(self): return self.root/'explain'
     @property
-    def checks(self): return self.root/'checks'            # leakage, priority, split-protocol and explanation checks
+    def checks(self): return self.root/'checks'
     @property
-    def predictions(self): return self.root/'predictions'  # open-deal scores with factors and warnings
+    def predictions(self): return self.root/'predictions'
     @property
     def figures(self): return self.root/'figures'
     @property
@@ -42,7 +41,6 @@ class Outputs:
     def write_manifest(self,manifest): write_json(self.manifest,manifest)
 
     def source_data(self):
-        """Raw-data folder the saved models were trained on, as recorded by src.train."""
         from src.data.crm import CRM_DIR
         value=self.read_manifest().get('data_dir')
         if value is None: return CRM_DIR

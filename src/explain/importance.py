@@ -1,4 +1,3 @@
-"""Global explanations: native importance, held-out permutation importance and raw-RF TreeSHAP."""
 import json
 import numpy as np
 import pandas as pd
@@ -43,7 +42,6 @@ def permutation_importance(model,X,y,out,quick=False):
 
 
 def shap_audit(rf,X,ids,out,quick=False):
-    # Explain the raw RF explicitly, not the selected/calibrated model.
     import shap
     sample=X.iloc[:(12 if quick else 64)]
     transformed=np.asarray(rf.prep.transform(sample),dtype=np.float32)

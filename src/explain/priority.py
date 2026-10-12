@@ -1,10 +1,7 @@
-"""Heuristic priority bands for scored opportunities (unvalidated; not a business policy)."""
-
 from __future__ import annotations
 
 
 def priority_group(probability: float) -> str:
-    """Convert a win probability into a presentation-friendly priority label."""
     if not 0 <= probability <= 1:
         raise ValueError("probability must be between 0 and 1")
     if probability >= 0.70:

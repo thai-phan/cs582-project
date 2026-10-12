@@ -1,20 +1,3 @@
-"""Generate simulated CRM deals with a planted, known win-probability formula.
-
-Output is a drop-in directory for ``src.data.crm.build(data_dir=...)``:
-sales_pipeline.csv (raw schema), plus accounts/products/sales_teams copies.
-``ground_truth.csv`` (not read by the loader) holds each deal's true win probability and the
-trend/match features behind it, so you can check whether TabNet recovers the planted signal.
-
-Each deal faces one competing product (competitor_products.csv); recycled %, longevity and
-made-in-USA differences vs the rival (deal_comparison.csv) are scaled by the industry-trend environment.
-Planted effects (logit scale, see ``win_logit``): additive product and agent effects,
-product-industry/account-sector match, 5-year industry trend (no look-ahead), and three
-interactions the linear model cannot express: match x rising trend, affordability
-(high price x small account), and GTS series x West region.
-Real products/accounts/agents are reused; raw data/crm is only read.
-Simulated data tests recovery of planted structure, not real-world accuracy -- keep it out of
-reports/crm/final/.
-"""
 import argparse
 import shutil
 import sys
@@ -24,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from make_industry_trends import build as build_trends, trailing_features  # noqa: E402
+from make_industry_trends import build as build_trends, trailing_features
 
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data" / "crm"
@@ -40,22 +23,16 @@ def effects(rng, names, scale):
 
 
 def env_weight(d, k=1.0):
-    """Industry trend acts as the environment: a growing industry cares more about the comparison.
-    ``k`` steepens the dependence (k=1: original 0.3-2.5 range)."""
     return (1 + k * d["trend_5y_avg_growth"].fillna(0) / 10).clip(0.3 / k, 2.5 * k)
 
 
 def win_logit(d, prod_fx, agent_fx, k=1.0):
-    """Planted truth. ``d`` is a frame with product/agent/sector-match/trend/price columns.
-    ``k`` multiplies the three interaction terms and the trend x comparison dependence;
-    k=1 reproduces the original data exactly."""
     z = d["product"].map(prod_fx) + d["sales_agent"].map(agent_fx)
     z += 0.6 * d["sector_match"]
     z += 0.05 * d["trend_5y_avg_growth"].fillna(0)
-    z += k * 0.5 * d["sector_match"] * (d["trend_5y_slope"].fillna(0) > 0)          # interaction 1
-    z -= k * 0.8 * ((np.log(d["sales_price"]) > 8) & (d["revenue"] < d["revenue"].median()))  # interaction 2
-    z += k * 0.7 * ((d["series"] == "GTS") & (d["regional_office"] == "West"))      # interaction 3
-    # head-to-head vs the competing product, amplified by the industry-trend environment
+    z += k * 0.5 * d["sector_match"] * (d["trend_5y_slope"].fillna(0) > 0)
+    z -= k * 0.8 * ((np.log(d["sales_price"]) > 8) & (d["revenue"] < d["revenue"].median()))
+    z += k * 0.7 * ((d["series"] == "GTS") & (d["regional_office"] == "West"))
     cmp_ = (0.02 * d["recycled_diff"] + 0.15 * d["longevity_diff"] + 0.4 * d["usa_diff"]
             - 0.5 * np.log(d["sales_price"] / d["competitor_price"]))
     return z + env_weight(d, k) * cmp_
@@ -65,8 +42,6 @@ SIGNALS = ["discount_pct", "quote_gap", "engagement_score", "days_since_contact"
 
 
 def deal_signals(n, seed, competitor_price, list_price):
-    """Continuous per-deal signals assumed known at engage time (initial quote, activity).
-    Drawn from a separate random stream so data generated without them is unchanged."""
     rng = np.random.default_rng(seed + 1000)
     discount = rng.uniform(0, 30, n)
     competitor_quote = competitor_price * rng.lognormal(0, 0.15, n)
@@ -79,8 +54,6 @@ def deal_signals(n, seed, competitor_price, list_price):
 
 
 def smooth_logit(sig, s):
-    """Smooth, oblique effect: tanh of a linear combination of all four signals plus a continuous
-    product term. Trees need many axis-aligned splits to approximate it; neural nets do not."""
     z = lambda c: (sig[c] - sig[c].mean()) / sig[c].std()
     index = 0.9 * z("discount_pct") - 1.1 * z("quote_gap") + 0.8 * z("engagement_score") - 0.7 * z("days_since_contact")
     return s * (2.0 * np.tanh(0.8 * index) + 0.8 * z("discount_pct") * z("engagement_score"))
@@ -100,7 +73,7 @@ def main():
     out = a.out_dir
     out.mkdir(parents=True, exist_ok=True)
 
-    products = pd.read_csv(SIM / "products.csv")  # run make_simulated_products.py first
+    products = pd.read_csv(SIM / "products.csv")
     accounts = pd.read_csv(RAW / "accounts.csv")
     teams = pd.read_csv(RAW / "sales_teams.csv")
     real = pd.read_csv(RAW / "sales_pipeline.csv")
@@ -115,18 +88,16 @@ def main():
     d = pd.DataFrame({
         "account": rng.choice(accounts["account"], n, p=acct_w),
         "sales_agent": rng.choice(teams["sales_agent"], n),
-        # engage dates skew later (pipeline volume grows over time)
         "engage_date": START + pd.to_timedelta((rng.beta(1.4, 1.0, n) * (LAST_ENGAGE - START).days).astype(int), unit="D"),
     })
     d = d.merge(accounts[["account", "sector", "revenue"]], on="account", how="left")
-    # product choice depends on the account's sector: matching products are 2.5x more likely
     ind = products["industry"].to_numpy()
     w = prod_w[None, :] * np.where(d["sector"].to_numpy()[:, None] == ind[None, :], 2.5, 1.0)
     cum = (w / w.sum(1, keepdims=True)).cumsum(1)
     d["product"] = products["product"].to_numpy()[(rng.random(n)[:, None] > cum).sum(1).clip(max=len(products) - 1)]
     d = (d.merge(products[["product", "series", "sales_price", "industry"]], on="product", how="left")
           .merge(teams[["sales_agent", "regional_office"]], on="sales_agent", how="left"))
-    comp = pd.read_csv(SIM / "competitor_products.csv")  # run make_simulated_products.py first
+    comp = pd.read_csv(SIM / "competitor_products.csv")
     rival = comp.groupby("competes_with").sample(frac=1, random_state=a.seed).groupby("competes_with").head(
         COMPETITORS_PER_PRODUCT)
     rivals = {k: g.reset_index(drop=True) for k, g in rival.groupby("competes_with")}
@@ -142,7 +113,6 @@ def main():
     d["competitor_price"] = d["competitor_price"].astype(float)
     d["sector_match"] = (d["sector"] == d["industry"]).astype(int)
 
-    # trailing 5-year trend of the account's sector, using only years before the engage year
     feats = pd.concat([trailing_features(trends, y).assign(engage_year=y) for y in (2016, 2017)])
     d["engage_year"] = d["engage_date"].dt.year
     d = d.merge(feats.rename(columns={"industry": "sector"}), on=["sector", "engage_year"], how="left")
@@ -152,13 +122,12 @@ def main():
     sig = deal_signals(n, a.seed, d["competitor_price"].to_numpy(), d["sales_price"].to_numpy())
     z = win_logit(d, prod_fx, agent_fx, a.interaction_strength) + smooth_logit(sig, a.smooth_strength)
     lo, hi = -10.0, 10.0
-    for _ in range(50):  # shift the intercept so the overall win rate matches the real data (~0.63)
+    for _ in range(50):
         mid = (lo + hi) / 2
         lo, hi = (mid, hi) if (1 / (1 + np.exp(-(z + mid)))).mean() < TARGET_WIN_RATE else (lo, mid)
     d["win_prob"] = 1 / (1 + np.exp(-(z + mid)))
     d["is_won_latent"] = (rng.random(n) < d["win_prob"]).astype(int)
 
-    # timing: closed deals finish 1-138 days after engage; late/stalled ones stay Engaging
     days = np.clip(rng.gamma(2.2, 21, n) + 1, 1, 138).astype(int) + 4 * d["is_won_latent"]
     d["close_date"] = d["engage_date"] + pd.to_timedelta(days, unit="D")
     stalled = rng.random(n) < STALLED_SHARE
@@ -172,7 +141,6 @@ def main():
     d.loc[~closed, "close_date"] = pd.NaT
     d.loc[prospect, "engage_date"] = pd.NaT
     d["opportunity_id"] = [f"{x:08X}" for x in rng.choice(16**8, n, replace=False)]
-    # like the raw data, only open deals have a missing account
     d.loc[~closed & (rng.random(n) < OPEN_MISSING_ACCOUNT), "account"] = np.nan
 
     fmt = lambda s: s.dt.strftime("%m/%d/%y").str.lstrip("0").str.replace("/0", "/", regex=False)

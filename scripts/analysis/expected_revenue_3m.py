@@ -1,13 +1,3 @@
-"""Illustrative ~3-month expected revenue from the open-deal snapshot scores.
-
-Expected revenue = sum(win_probability * list sales_price). A Bernoulli
-simulation over per-deal probabilities gives a spread. This is NOT a validated
-forecast: the model is weak (test ROC-AUC ~0.5), prices are list prices rather
-than close_value, new deals are not included, and scores are snapshot scores.
-
-Usage:
-    python scripts/analysis/expected_revenue_3m.py [--run reports/crm/final] [--sims 10000]
-"""
 from __future__ import annotations
 
 import argparse

@@ -1,4 +1,3 @@
-"""Create a portable ZIP and binary patch without touching the real Git index."""
 import argparse
 import hashlib
 import json

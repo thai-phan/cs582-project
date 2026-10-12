@@ -1,9 +1,3 @@
-"""Extended features of the simulated CRM data (data/crm_simulated), used by default when present.
-
-The generator writes side files next to the four raw tables. Only attributes known when a deal is
-engaged are used: product attributes, account-sector match, prior-year industry trends and the
-rival product. The planted true win probability in ground_truth.csv is never read as a feature.
-"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,12 +11,10 @@ SIGNALS_FILE = "deal_signals.csv"
 TREND_COLUMNS = ["sector_match", "trend_5y_avg_growth", "trend_5y_slope", "trend_last_growth"]
 NUMERIC = TREND_COLUMNS + ["recycled_pct", "longevity_years", "made_in_usa", "competitor_price",
                            "recycled_diff", "longevity_diff", "usa_diff"]
-#: Continuous per-deal signals written only by the smooth-signal generator setting.
 SIGNALS = ["discount_pct", "quote_gap", "engagement_score", "days_since_contact"]
 
 
 def available(data_dir: Path) -> bool:
-    """True when ``data_dir`` holds the simulated side files."""
     return (Path(data_dir) / GROUND_TRUTH).exists() and (Path(data_dir) / COMPARISON).exists()
 
 
@@ -31,7 +23,6 @@ def extra_numeric(data_dir: Path) -> list[str]:
 
 
 def side_table(data_dir: Path) -> pd.DataFrame:
-    """One row per opportunity with the deal-level extended features."""
     data_dir = Path(data_dir)
     extra = (pd.read_csv(data_dir / GROUND_TRUTH, usecols=["opportunity_id", *TREND_COLUMNS])
              .merge(pd.read_csv(data_dir / COMPARISON).drop(columns="competitor_product"),
@@ -42,7 +33,6 @@ def side_table(data_dir: Path) -> pd.DataFrame:
 
 
 def add_features(frame: pd.DataFrame, extra: pd.DataFrame) -> pd.DataFrame:
-    """Attach the side table to rows that carry ``opportunity_id``; every row must be covered."""
     out = frame.merge(extra, on="opportunity_id", how="left", validate="many_to_one")
     if len(out) != len(frame):
         raise AssertionError("simulated feature join changed the row count")

@@ -1,4 +1,3 @@
-"""As-of-date evaluation. Outcome dates control label eligibility, never features."""
 from dataclasses import dataclass
 import numpy as np
 import pandas as pd

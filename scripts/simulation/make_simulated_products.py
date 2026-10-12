@@ -1,10 +1,3 @@
-"""Extend the real product catalog with simulated products for TabNet stress tests.
-
-Reads data/crm/products.csv (read-only) and writes data/crm_simulated/products.csv.
-Also writes product_rd.csv (annual R&D expense per product), unit_cost in products.csv, and
-competitor_products.csv (rival products with recycled %, longevity, made-in-USA).
-Simulated rows are flagged so they are never mixed into final results.
-"""
 from pathlib import Path
 
 import numpy as np
@@ -14,8 +7,6 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "data" / "crm" / "products.csv"
 OUT = ROOT / "data" / "crm_simulated" / "products.csv"
 
-# Target industry per product, using the account `sector` labels (raw spelling, e.g. "technolgy").
-# Every one of the 10 sectors gets at least one product so product x sector effects can be planted.
 INDUSTRY = {
     "GTX Basic": "retail", "GTX Plus Basic": "services", "GTX Pro": "marketing",
     "GTX Plus Pro": "finance", "MG Special": "employment", "MG Advanced": "entertainment",
@@ -25,7 +16,6 @@ INDUSTRY = {
     "GTS Enterprise": "finance",
 }
 
-# Extra tiers inside existing series plus a new GTS series (price spread covers ~25 to ~52k).
 NEW_PRODUCTS = [
     ("GTX Lite", "GTX", 250),
     ("GTX Ultra", "GTX", 9800),
@@ -39,8 +29,6 @@ NEW_PRODUCTS = [
 ]
 
 
-# Environmental/sourcing factors compared against competitors: (recycled %, longevity years, made in USA).
-# Invented values; higher series tiers skew longer-lived. Not real product facts.
 FACTORS = {
     "GTX Basic": (25, 4, 1), "GTX Plus Basic": (30, 5, 1), "GTX Pro": (35, 7, 1), "GTX Plus Pro": (40, 8, 1),
     "MG Special": (15, 3, 0), "MG Advanced": (30, 6, 0), "GTK 500": (55, 12, 1), "GTX Lite": (20, 3, 1),
@@ -53,7 +41,6 @@ SEED = 582
 
 
 def competitor_table(products: pd.DataFrame) -> pd.DataFrame:
-    """Two rival products per own product, with factors scattered around ours (some better, some worse)."""
     rng = np.random.default_rng(SEED)
     rows = []
     for _, p in products.iterrows():
@@ -71,19 +58,17 @@ def competitor_table(products: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# Unit cost as a share of list price, by series (hardware-heavy GTK costs more to make).
 COST_RATIO = {"GTX": 0.45, "MG": 0.35, "GTK": 0.55, "GTS": 0.40}
 RD_YEARS = (2016, 2017)
 
 
 def add_unit_cost(products: pd.DataFrame) -> pd.Series:
-    rng = np.random.default_rng(SEED + 1)  # separate stream: competitor table stays unchanged
+    rng = np.random.default_rng(SEED + 1)
     ratio = products["series"].map(COST_RATIO) * rng.uniform(0.85, 1.15, len(products))
     return (products["sales_price"] * ratio).round(2)
 
 
 def rd_table(products: pd.DataFrame) -> pd.DataFrame:
-    """Annual R&D spend per product. Scales with price tier; newer (simulated) products spend more."""
     rng = np.random.default_rng(SEED + 2)
     rows = []
     for _, p in products.iterrows():

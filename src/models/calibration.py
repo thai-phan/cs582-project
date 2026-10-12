@@ -1,4 +1,3 @@
-"""Monotone sigmoid calibration fitted on validation; the base model stays frozen."""
 from dataclasses import dataclass
 import numpy as np
 from scipy.optimize import minimize

@@ -1,13 +1,3 @@
-"""Repeat the simulated experiment over several data seeds to get error bars.
-
-For each interaction strength and seed: generate N deals into a temporary directory, fit all
-models (scripts/simulation/run_simulated_models.py), and collect the test metrics. Each seed draws a new
-simulated world (new product/agent effects, accounts, rivals and outcomes); model seed stays 42.
-Writes data/crm_simulated/seed_results.csv (every run) and seed_summary.csv (mean, std, min, max).
-Generated deal files are not kept -- rerun the generator with the seed to recreate one.
-
-Run: .venv-crm/bin/python scripts/simulation/run_simulated_seeds.py [--seeds 1 2 3 4 5] [--strengths 1 3]
-"""
 import argparse
 import subprocess
 import sys
@@ -52,7 +42,6 @@ def main():
                .agg(["mean", "std", "min", "max"]).round(4))
     summary.columns = ["_".join(c) for c in summary.columns]
     summary.to_csv(OUT / f"seed_summary{a.tag}.csv")
-    # how often each model has the best test AUC, per setting
     best = (runs[runs["features"] != "oracle"].loc[lambda r: r.groupby(
         ["interaction_strength", "features", "seed"])["roc_auc"].idxmax()]
         .groupby(["interaction_strength", "features", "model"]).size().rename("times_best"))

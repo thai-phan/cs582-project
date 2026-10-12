@@ -1,4 +1,3 @@
-"""Metrics, validation-only threshold choice and model selection."""
 import numpy as np
 from sklearn.metrics import (accuracy_score,average_precision_score,balanced_accuracy_score,
     brier_score_loss,confusion_matrix,f1_score,log_loss,precision_score,recall_score,roc_auc_score)

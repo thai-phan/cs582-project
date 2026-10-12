@@ -1,7 +1,3 @@
-"""Evidence for the claimed workflow contributions: split protocol and explanation checks.
-
-Called by the evaluate stage after model selection is locked; refits only for the alternative protocols.
-"""
 import json
 import numpy as np
 import pandas as pd
@@ -16,7 +12,6 @@ TOP_K=3
 
 
 def bootstrap_auc(y,p,draws,seed=42):
-    """Percentile 95% interval of test ROC-AUC; reflects test sampling noise only."""
     y=np.asarray(y); p=np.asarray(p); rng=np.random.default_rng(seed); values=[]
     for _ in range(draws):
         i=rng.integers(0,len(y),len(y))
@@ -25,7 +20,6 @@ def bootstrap_auc(y,p,draws,seed=42):
 
 
 def paired_auc_delta(y,p_new,p_base,draws,seed=42):
-    """Bootstrap the AUC difference on one shared test set."""
     y=np.asarray(y); rng=np.random.default_rng(seed); values=[]
     for _ in range(draws):
         i=rng.integers(0,len(y),len(y))
@@ -34,10 +28,8 @@ def paired_auc_delta(y,p_new,p_base,draws,seed=42):
 
 
 def protocol_indices(dataset,split,seeds):
-    """Yield (protocol, seed, train, validation, test). Only the as-of protocol is valid for reporting."""
     frame=dataset.frame; engage=frame.engage_date; y=dataset.labels()
     yield 'asof_purged',42,split.train,split.validation,split.test
-    # Same boundaries and same test rows, but keep labels that were not yet known at the cutoff.
     train=frame.index[engage<split.validation_start].to_numpy()
     validation=frame.index[(engage>=split.validation_start)&(engage<split.test_start)].to_numpy()
     yield 'chronological_no_purge',42,train,validation,split.test
@@ -74,7 +66,6 @@ def split_protocols(dataset,split,out,quick=False):
 
 
 def feature_groups(fitted,dataset):
-    """Column positions of each original feature in the transformed matrix (one-hot blocks summed)."""
     encoder=fitted.prep.named_transformers_['cat'].named_steps['encode']; groups={}; start=0
     for col,categories in zip(dataset.categorical,encoder.categories_):
         groups[col]=list(range(start,start+len(categories))); start+=len(categories)
@@ -85,7 +76,6 @@ def feature_groups(fitted,dataset):
 
 
 def rf_agreement(rf,dataset,X,reference,out):
-    """Same model, two methods: grouped TreeSHAP versus single-feature reference sensitivity."""
     import shap
     transformed=np.asarray(rf.prep.transform(X),dtype=np.float32)
     explainer=shap.TreeExplainer(rf.clf,feature_perturbation='tree_path_dependent',model_output='raw')
@@ -109,7 +99,6 @@ def rf_agreement(rf,dataset,X,reference,out):
 
 
 def deletion_test(model,X,reference,quick=False,seed=42):
-    """Replace each row's top-k sensitivity features jointly; compare with k random features."""
     p=model.predict_proba(X)[:,1]; sensitivity=reference_sensitivities(model,X,reference)[list(X.columns)]
     rng=np.random.default_rng(seed); n,m=len(X),X.shape[1]
     def replace(mask):

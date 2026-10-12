@@ -1,4 +1,3 @@
-"""Model-agnostic sensitivities, explicitly not additive SHAP or causal effects."""
 import json
 import numpy as np
 import pandas as pd
@@ -29,7 +28,6 @@ CONTEXT=['opportunity_id','deal_stage','engage_date','account','product','sales_
 
 
 def explain_rows(model,rows,features,reference,threshold,scoring_context='frozen_model_snapshot_demo'):
-    """Score rows that carry the model's feature columns; add factors, priority and input warnings."""
     if not 0<=threshold<=1: raise ValueError('invalid decision threshold')
     missing=[col for col in features if col not in rows]
     if missing: raise ValueError(f'input lacks feature columns: {missing}')
@@ -40,7 +38,6 @@ def explain_rows(model,rows,features,reference,threshold,scoring_context='frozen
     result['win_probability']=p; result['loss_probability']=1-p
     result['predicted_outcome']=np.where(p>=threshold,'Won','Lost')
     result['priority']=[priority_group(float(v)) for v in p]
-    # Without an account the account-derived inputs are imputed: outside training support.
     result['account_missing']=(rows['account'] if 'account' in rows else rows['sector']).isna().to_numpy()
     result['input_warning']=np.where(result.account_missing,'Account missing: numeric imputation / unknown categories','')
     result['model']=model.name
@@ -61,5 +58,4 @@ def explain_rows(model,rows,features,reference,threshold,scoring_context='frozen
 
 
 def explain_open(model,dataset,reference,threshold):
-    """Snapshot scores for the dataset's Engaging deals; open deals are never labelled Lost."""
     return explain_rows(model,dataset.extra['scorable_open_deals'],dataset.feature_columns,reference,threshold)

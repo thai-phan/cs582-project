@@ -1,10 +1,3 @@
-"""Predict stage: score deals with the frozen calibrated model and explain each score.
-
-    python -m src.predict [--output RUN]                          # Engaging deals in data/crm
-    python -m src.predict --input new_deals.csv [--save PATH]     # new rows in sales_pipeline.csv format
-
-Scores are snapshot estimates with reference-sensitivity factors; open deals are never labelled Lost.
-"""
 import argparse
 from datetime import datetime,timezone
 from pathlib import Path
@@ -22,7 +15,6 @@ def load(out):
 
 
 def run(output_dir=DEFAULT_OUTPUT,dataset=None):
-    """Score the dataset's Engaging deals into predictions/open_deal_predictions.csv."""
     out=Outputs(output_dir).make(); scoring=load(out); dataset=dataset or build(out.source_data())
     if scoring['features']!=dataset.feature_columns: raise ValueError('scoring bundle features differ from the dataset')
     predictions=explain_open(scoring['model'],dataset,scoring['reference'],scoring['decision_threshold'])
@@ -35,7 +27,6 @@ def run(output_dir=DEFAULT_OUTPUT,dataset=None):
 
 
 def score_file(input_csv,output_dir=DEFAULT_OUTPUT,save=None):
-    """Score new deals given in raw sales_pipeline.csv format; joins the reference tables the models were trained with."""
     out=Outputs(output_dir); scoring=load(out)
     rows=prepare_new_deals(pd.read_csv(input_csv),out.source_data())
     predictions=explain_rows(scoring['model'],rows,scoring['features'],scoring['reference'],

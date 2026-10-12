@@ -1,16 +1,3 @@
-"""Fit the project's models (Dummy control, LR, RF, MLP, TabNet) on the simulated CRM data.
-
-Uses the same loader, as-of split, preprocessing, model settings, validation threshold and
-metrics as src.run_project, on data/crm_simulated/. Two feature sets:
-  base     -- the project's standard CRM features
-  extended -- base + sector match, 5-year industry trend and competitor comparison features
-The oracle row scores the planted true win probability (upper bound for any model).
-Writes model_results.csv into the data directory (default data/crm_simulated/); --quick writes
-model_results_quick.csv instead, so a smoke run never replaces the stored results.
-Simulated: never mix with reports/crm/final/.
-
-Run: .venv-crm/bin/python scripts/simulation/run_simulated_models.py [--quick] [--data-dir DIR]
-"""
 import argparse
 import sys
 from pathlib import Path
@@ -19,10 +6,10 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from src.data.crm import build  # noqa: E402
-from src.evaluation.metrics import choose_threshold, metrics  # noqa: E402
-from src.models.zoo import MODEL_NAMES, fit_model  # noqa: E402
-from src.data.split import asof_split  # noqa: E402
+from src.data.crm import build
+from src.evaluation.metrics import choose_threshold, metrics
+from src.models.zoo import MODEL_NAMES, fit_model
+from src.data.split import asof_split
 
 SIM = ROOT / "data" / "crm_simulated"
 
@@ -33,11 +20,11 @@ def main():
     ap.add_argument("--data-dir", type=Path, default=SIM, help="output dir of make_simulated_deals.py")
     a = ap.parse_args()
     quick, syn = a.quick, a.data_dir
-    base = build(syn, simulated_features=False)   # 18 standard features
+    base = build(syn, simulated_features=False)
     split = asof_split(base)
     truth = pd.read_csv(syn / "ground_truth.csv").set_index("opportunity_id")["win_prob"]
     rows = []
-    for label, ds in (("base", base), ("extended", build(syn))):   # build() adds extended features by default
+    for label, ds in (("base", base), ("extended", build(syn))):
         X, y = ds.features(), ds.labels()
         xv, yv, xt, yt = X.loc[split.validation], y.loc[split.validation], X.loc[split.test], y.loc[split.test]
         for name in MODEL_NAMES:

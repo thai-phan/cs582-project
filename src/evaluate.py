@@ -1,11 +1,3 @@
-"""Evaluate stage: test metrics, figures, explanations and audits for already-trained models.
-
-    python -m src.evaluate [--output PATH]
-
-Loads models saved by src.train. Nothing here can change the selected model, threshold or calibration.
-The steps (start, score_test, make_figures, explain_models, run_audits, run_checks, finish) can also
-be called one by one, as the evaluate notebooks do.
-"""
 import argparse
 from dataclasses import dataclass,field
 from datetime import datetime,timezone
@@ -38,9 +30,9 @@ class Evaluation:
     dataset: object
     split: object
     quick: bool
-    test_rows: list=field(default_factory=list)       # one metrics row per model
-    probabilities: dict=field(default_factory=dict)   # raw test P(Won) per model
-    calibrated_test: object=None                      # calibrated P(Won) of the selected model
+    test_rows: list=field(default_factory=list)
+    probabilities: dict=field(default_factory=dict)
+    calibrated_test: object=None
     test_predictions: object=None
 
     def xy(self,part):
@@ -49,7 +41,6 @@ class Evaluation:
 
 
 def start(output_dir=DEFAULT_OUTPUT,trained=None,dataset=None,split=None):
-    """Step 1: load the saved models and rebuild the same data and split they were trained on."""
     out=Outputs(output_dir).make(); manifest=out.read_manifest()
     if 'selected_model' not in manifest: raise RuntimeError(f'{out.root} has no trained models: run src.train first')
     trained=trained or bundle.load_trained(out)
@@ -60,7 +51,6 @@ def start(output_dir=DEFAULT_OUTPUT,trained=None,dataset=None,split=None):
 
 
 def score_test(ev):
-    """Step 2: score every model on the test period with its validation threshold; calibrated vs raw."""
     t=ev.trained; xt,yt=ev.xy('test'); selected=t.selected
     ev.probabilities={name:model.predict_proba(xt)[:,1] for name,model in t.models.items()}
     ev.test_rows=[{'model':name,**metrics(yt,p,t.thresholds[name])} for name,p in ev.probabilities.items()]
@@ -76,7 +66,6 @@ def score_test(ev):
 
 
 def make_figures(ev):
-    """Step 3: learning curves, ROC/PR curves, confusion matrices and reliability."""
     t=ev.trained; _,yt=ev.xy('test')
     histories={name:{'settings':m.settings,'history':m.history,'fit_seconds':m.fit_seconds} for name,m in t.models.items()}
     figures.learning_curves(histories,ev.out)
@@ -84,7 +73,6 @@ def make_figures(ev):
 
 
 def explain_models(ev):
-    """Step 4: native importance, held-out permutation importance and raw-RF TreeSHAP."""
     t=ev.trained; xt,yt=ev.xy('test')
     importance.native_importances(t.models,ev.out)
     importance.permutation_importance(t.calibrated,xt,yt,ev.out,quick=ev.quick)
@@ -92,14 +80,12 @@ def explain_models(ev):
 
 
 def run_audits(ev):
-    """Step 5: invalid close-value leakage control and priority-band diagnostics."""
     t=ev.trained; xv,yv=ev.xy('validation'); _,yt=ev.xy('test')
     audits.leakage_control(ev.dataset,ev.split,next(r for r in ev.test_rows if r['model']==t.selected),ev.out)
     audits.priority_checks(yt,ev.calibrated_test,yv,t.calibrated.predict_proba(xv)[:,1],ev.out)
 
 
 def run_checks(ev):
-    """Step 6: split-protocol comparison and explanation faithfulness. Refits models: slow on large data."""
     print('Checking split protocols and explanations...',flush=True)
     t=ev.trained
     protocols=novelty_checks.split_protocols(ev.dataset,ev.split,ev.out,quick=ev.quick)
@@ -111,7 +97,6 @@ def run_checks(ev):
 
 
 def finish(ev):
-    """Step 7: record limitations and the stage in the manifest."""
     ev.manifest['limitations']=LIMITATIONS
     ev.manifest.setdefault('stages',{})['evaluate']=datetime.now(timezone.utc).isoformat()
     ev.out.write_manifest(ev.manifest)

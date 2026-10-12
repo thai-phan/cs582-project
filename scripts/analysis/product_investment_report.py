@@ -1,22 +1,10 @@
-"""Rank products for future investment from the simulated CRM data.
-
-Reads data/crm_simulated/ (sales_pipeline, products, product_rd, industry_trends) and writes
-product_investment.csv there. Uses only observed outcomes, never ground_truth.csv.
-Simulated data and a heuristic score: an illustration of the analysis, not a business finding.
-
-Columns: won deals and revenue, gross profit (revenue - unit_cost per won deal), total R&D,
-R&D ROI ((gross profit - R&D) / R&D), win rate, margin, open pipeline expected value
-(open deals x list price x observed win rate), and the target industry's latest growth.
-``invest_score`` averages the percentile ranks of ROI, win rate, margin, pipeline-to-R&D and
-industry growth (equal weights).
-"""
 import sys
 from pathlib import Path
 
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "simulation"))
-from make_industry_trends import trailing_features  # noqa: E402
+from make_industry_trends import trailing_features
 
 SIM = Path(__file__).resolve().parents[2] / "data" / "crm_simulated"
 SCORE_PARTS = ["rd_roi", "win_rate", "gross_margin", "pipeline_to_rd", "industry_growth"]

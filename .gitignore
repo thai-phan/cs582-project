@@ -33,8 +33,6 @@ data/*/processed/
 
 # Disposable smoke outputs; verified full reports remain tracked.
 reports/crm/smoke/
-# Runs on simulated/other data (src.train --data-dir): large model files, never final results.
-reports/crm/simulated/
 
 # Smoke-run output of scripts/simulation/run_simulated_models.py --quick
 data/*/model_results_quick.csv

@@ -1,10 +1,3 @@
-"""Maven CRM Sales Opportunities -- the project's primary dataset.
-
-The honest model uses only information available when a deal is engaging.
-Outcome fields remain in ``frame`` for audit and EDA, but ``Dataset.features``
-can never return them.
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,10 +13,8 @@ DATE_FORMAT = "%m/%d/%y"
 TARGET = "is_won"
 CLOSED_STAGES = ("Won", "Lost")
 
-#: Known only after a deal closes -- never model features.
 LEAKAGE_COLUMNS = ("close_date", "close_value", "deal_stage", "opportunity_id")
 
-#: ``sales_pipeline.product`` lacks the space that ``products.product`` uses.
 PRODUCT_NAME_FIXES = {"GTXPro": "GTX Pro"}
 SECTOR_FIXES = {"technolgy": "technology"}
 
@@ -112,7 +103,6 @@ def join_tables(pipeline, accounts, products, sales_teams) -> pd.DataFrame:
 
 
 def add_derived_features(frame: pd.DataFrame) -> pd.DataFrame:
-    """Calendar and account-age features from ``engage_date`` only -- never ``close_date``."""
     out = frame.copy()
     engage = out["engage_date"]
     out["engage_year"] = engage.dt.year
@@ -124,11 +114,6 @@ def add_derived_features(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def build(data_dir: Path = CRM_DIR, simulated_features: bool = True) -> Dataset:
-    """Load, validate and join one data folder.
-
-    For the simulated data (side files present), the extended deal-level features are added by
-    default; pass ``simulated_features=False`` for the 18 standard features only.
-    """
     raw = load_raw(data_dir)
     validate_raw(raw)
     joined = join_tables(clean_pipeline(raw["sales_pipeline"]), clean_accounts(raw["accounts"]),
@@ -173,11 +158,6 @@ def build(data_dir: Path = CRM_DIR, simulated_features: bool = True) -> Dataset:
 
 
 def prepare_new_deals(pipeline: pd.DataFrame, data_dir: Path = CRM_DIR) -> pd.DataFrame:
-    """Turn new rows in ``sales_pipeline.csv`` format into model inputs.
-
-    Uses the same cleaning, joins and engage-date features as ``build()``; outcome columns,
-    if present, are carried along for context but never become features.
-    """
     raw = load_raw(data_dir)
     rows = blank_to_na(strip_strings(pipeline))
     missing = [c for c in ("opportunity_id", "sales_agent", "product", "account", "engage_date") if c not in rows]
@@ -190,6 +170,5 @@ def prepare_new_deals(pipeline: pd.DataFrame, data_dir: Path = CRM_DIR) -> pd.Da
         raise ValueError("every new deal needs an engage_date (Prospecting deals cannot be scored)")
     joined = add_derived_features(join_tables(rows, clean_accounts(raw["accounts"]), raw["products"], raw["sales_teams"]))
     if simulated.available(data_dir):
-        # Extended features exist only for deals the simulator generated.
         joined = simulated.add_features(joined, simulated.side_table(data_dir))
     return joined.reset_index(drop=True)

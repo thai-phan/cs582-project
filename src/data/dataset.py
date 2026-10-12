@@ -1,10 +1,3 @@
-"""Shared dataset container and cleaning helpers.
-
-Every loader in :mod:`src.data` returns a :class:`Dataset`. Everything
-downstream -- preprocessing, baselines, the advanced models, explainability --
-works from that object and never touches a raw file.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,20 +11,6 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 @dataclass
 class Dataset:
-    """A cleaned, labeled table plus the column roles a model needs.
-
-    Attributes:
-        name: short id, also the sub-directory under ``data/`` and ``reports/``.
-        frame: one row per labeled example; contains the target and every column
-            in ``categorical`` / ``numeric``. May carry extra columns for EDA --
-            ``features()`` never returns those.
-        target: name of the binary 0/1 label column.
-        categorical: columns to one-hot encode. Missing values are already a
-            literal ``"Missing"`` category where missingness is informative.
-        numeric: columns to impute (median) and optionally scale.
-        report: counts collected while cleaning, for the write-up.
-        extra: anything else worth keeping (e.g. the CRM's open deals).
-    """
 
     name: str
     frame: pd.DataFrame
@@ -63,28 +42,19 @@ class Dataset:
             raise ValueError(f"{self.name}: target must be 0/1, found {bad}")
 
 
-# --------------------------------------------------------------------------------------
-# Helpers shared by the loaders
-# --------------------------------------------------------------------------------------
-
-
 def is_text(series: pd.Series) -> bool:
     return series.dtype == object or isinstance(series.dtype, pd.StringDtype)
 
 
 def strip_strings(frame: pd.DataFrame) -> pd.DataFrame:
-    """Trim surrounding whitespace from every text column."""
     out = frame.copy()
     for column in out.columns:
         if is_text(out[column]):
-            # map, not .str.strip(): a mixed object column (numbers + blank strings)
-            # would have its numbers turned into NaN by the .str accessor.
             out[column] = out[column].map(lambda v: v.strip() if isinstance(v, str) else v)
     return out
 
 
 def blank_to_na(frame: pd.DataFrame, placeholders: tuple[str, ...] = ()) -> pd.DataFrame:
-    """Treat empty strings -- and any listed placeholder tokens -- as missing."""
     out = frame.replace(r"^\s*$", np.nan, regex=True)
     if placeholders:
         out = out.replace(list(placeholders), np.nan)
@@ -92,13 +62,11 @@ def blank_to_na(frame: pd.DataFrame, placeholders: tuple[str, ...] = ()) -> pd.D
 
 
 def collapse_rare(series: pd.Series, top_k: int, other: str = "Other") -> pd.Series:
-    """Keep the ``top_k`` most frequent levels, fold the rest into ``other``."""
     keep = series.value_counts().head(top_k).index
     return series.where(series.isin(keep) | series.isna(), other)
 
 
 def fill_missing_category(frame: pd.DataFrame, columns: list[str], token: str = "Missing") -> pd.DataFrame:
-    """Make missingness an explicit category on the given columns."""
     out = frame.copy()
     for column in columns:
         out[column] = out[column].astype("object").where(out[column].notna(), token).astype(str)

@@ -1,4 +1,3 @@
-"""Reproducible diagnostic figures. Never used for model/threshold selection."""
 import numpy as np
 import pandas as pd
 import matplotlib

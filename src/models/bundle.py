@@ -1,20 +1,19 @@
-"""Saved training artifacts. joblib unpickles Python objects: load only files this project wrote."""
 from dataclasses import dataclass,field
 import joblib
 
-TRAINED_FILE='trained_models.joblib'   # every fitted model, for evaluation
-SCORING_FILE='model_bundle.joblib'     # frozen calibrated model only, for prediction
+TRAINED_FILE='trained_models.joblib'
+SCORING_FILE='model_bundle.joblib'
 WARNING='Trusted local artifact only; never unpickle an untrusted file'
 
 
 @dataclass
 class Trained:
-    models: dict                 # name -> FittedModel, all fitted on the same training rows
-    thresholds: dict             # name -> raw validation macro-F1 threshold
-    selected: str                # chosen on validation ROC-AUC before any test metric exists
-    calibrated: object           # CalibratedModel around the frozen selected model
-    decision_threshold: float    # selected raw threshold mapped through calibration
-    reference: dict              # training medians/modes for reference sensitivities
+    models: dict
+    thresholds: dict
+    selected: str
+    calibrated: object
+    decision_threshold: float
+    reference: dict
     features: list
     validation_rows: list=field(default_factory=list)
 

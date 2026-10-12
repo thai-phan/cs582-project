@@ -1,4 +1,3 @@
-"""Five CPU classifiers with a shared, training-fitted preprocessing contract."""
 from copy import deepcopy
 from dataclasses import dataclass
 from time import perf_counter

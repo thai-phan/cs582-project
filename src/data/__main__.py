@@ -1,8 +1,3 @@
-"""Build one dataset, write its processed table, print the cleaning report.
-
-    python -m src.data crm
-"""
-
 from __future__ import annotations
 
 import argparse

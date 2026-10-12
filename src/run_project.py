@@ -1,9 +1,3 @@
-"""One command for the whole project: train -> evaluate -> predict.
-
-    python -m src.run_project [--quick] [--output PATH]
-
-Each stage can also run alone: src.train, src.evaluate, src.predict.
-"""
 import argparse
 from datetime import datetime,timezone
 from pathlib import Path
@@ -18,7 +12,6 @@ def run(output_dir=DEFAULT_OUTPUT,quick=False):
         _,trained,dataset,split=train.run(out.root,quick=quick)
         evaluate.run(out.root,trained=trained,dataset=dataset,split=split)
         predict.run(out.root,dataset=dataset)
-        # Status changes only after every stage succeeds.
         manifest=out.read_manifest()
         manifest.update(status='complete',completed_utc=datetime.now(timezone.utc).isoformat(),elapsed_seconds=time.perf_counter()-start)
         out.write_manifest(manifest)

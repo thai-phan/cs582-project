@@ -1,4 +1,3 @@
-"""Install an isolated CPU runtime (.venv-crm) with the tested dependency pins."""
 from pathlib import Path
 import subprocess
 import sys
@@ -11,7 +10,6 @@ def main():
     if sys.version_info[:2] != (3,12):
         raise SystemExit('Verified runtime is Python 3.12. Select a Python 3.12 runtime; do not silently change pins.')
     env=ROOT/'.venv-crm'
-    # Support existing uv-created POSIX environments as well as a clean setup.
     venv.create(env,with_pip=True,symlinks=sys.platform!='win32')
     python=env/('Scripts/python.exe' if sys.platform=='win32' else 'bin/python')
     subprocess.run([str(python),'-m','pip','install','torch==2.8.0','--index-url','https://download.pytorch.org/whl/cpu'],check=True)

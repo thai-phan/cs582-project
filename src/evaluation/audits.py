@@ -1,4 +1,3 @@
-"""Audits on held-out data: the invalid close-value leakage control and priority-band diagnostics."""
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt

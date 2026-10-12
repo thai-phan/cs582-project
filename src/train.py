@@ -1,12 +1,3 @@
-"""Train stage: fit all five models, select on validation, calibrate, save the models.
-
-    python -m src.train [--quick] [--output PATH] [--data-dir DIR]
-
---data-dir trains on another folder in the raw CRM format (e.g. data/crm_simulated); its results go to
-reports/crm/simulated/ by default and may never be written into reports/crm/final/.
-
-No test row is scored here: selection, threshold and calibration are locked before evaluation.
-"""
 import argparse
 from datetime import datetime,timezone
 import hashlib
@@ -31,7 +22,6 @@ def describe_run(manifest,dataset,split,data_dir):
     y=dataset.labels()
     manifest['features']=dataset.feature_columns
     manifest['data_dir']=str(data_dir.relative_to(ROOT)) if data_dir.is_relative_to(ROOT) else str(data_dir)
-    # Hash the input tables (and the data dictionary when present), not derived files in the folder.
     inputs=[data_dir/f'{name}.csv' for name in ['sales_pipeline','accounts','products','sales_teams','data_dictionary']]
     manifest['raw_sha256']={path.name:hashlib.sha256(path.read_bytes()).hexdigest() for path in inputs if path.exists()}
     manifest['split']={'method':'engagement date groups + outcome availability purge',
@@ -43,18 +33,15 @@ def describe_run(manifest,dataset,split,data_dir):
     manifest['dependencies']={name:version(name) for name in DEPENDENCIES}
     git=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,text=True,capture_output=True)
     manifest['base_commit']=git.stdout.strip() if git.returncode==0 else 'not a git checkout'
-    # Hash source independently: working tree can be newer than the commit.
     manifest['source_sha256']={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/'src').rglob('*.py'))}
 
 
 def default_output(data_dir=CRM_DIR,quick=False):
-    """Where a run goes when no --output is given; other data never defaults to the final folder."""
     if Path(data_dir).resolve()==CRM_DIR.resolve(): return SMOKE_OUTPUT if quick else DEFAULT_OUTPUT
     return SIMULATED_OUTPUT/('smoke' if quick else 'final')
 
 
 def start(output_dir=DEFAULT_OUTPUT,quick=False,data_dir=CRM_DIR,dataset=None,split=None):
-    """Step 1: create the run folder and manifest, load, validate and split the data."""
     data_dir=Path(data_dir).resolve()
     if data_dir!=CRM_DIR.resolve() and Path(output_dir).resolve()==DEFAULT_OUTPUT.resolve():
         raise ValueError(f'{DEFAULT_OUTPUT} holds only results on data/crm; choose another --output for {data_dir}')
@@ -72,7 +59,6 @@ def start(output_dir=DEFAULT_OUTPUT,quick=False,data_dir=CRM_DIR,dataset=None,sp
 
 
 def fit_one(name,dataset,split,quick=False):
-    """Step 2: fit one model on training rows; pick its threshold and score it on validation only."""
     X=dataset.features(); xv,yv=X.loc[split.validation],dataset.labels().loc[split.validation]
     model=fit_model(name,dataset,split.train,split.validation,quick=quick)
     pv=model.predict_proba(xv)[:,1]; threshold=choose_threshold(yv,pv)
@@ -80,10 +66,6 @@ def fit_one(name,dataset,split,quick=False):
 
 
 def finish(out,manifest,dataset,split,fitted):
-    """Step 3: select on validation, calibrate the frozen selected model, save every artifact.
-
-    ``fitted`` maps each name in MODEL_NAMES to the (model, threshold, validation row) from fit_one.
-    """
     if list(fitted)!=list(MODEL_NAMES): raise ValueError(f'fit all of {MODEL_NAMES} in order before selecting; got {list(fitted)}')
     X=dataset.features(); xv,yv=X.loc[split.validation],dataset.labels().loc[split.validation]
     models={name:f[0] for name,f in fitted.items()}; thresholds={name:f[1] for name,f in fitted.items()}
@@ -112,7 +94,6 @@ def finish(out,manifest,dataset,split,fitted):
 
 
 def run(output_dir=DEFAULT_OUTPUT,quick=False,dataset=None,split=None,data_dir=CRM_DIR):
-    """Returns (manifest, trained, dataset, split) so run_project can chain stages in memory."""
     out,manifest,dataset,split=start(output_dir,quick,data_dir,dataset,split)
     fitted={}
     for name in MODEL_NAMES:
